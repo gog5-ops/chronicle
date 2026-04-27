@@ -1,7 +1,7 @@
 import path from "node:path";
 
 export const config = {
-  port: parseInt(process.env.HERMES_API_PORT || "3001", 10),
+  port: parseInt(process.env.HERMES_API_PORT || "3002", 10),
 
   /** Path to the wiki directory (truth source for chronicle, docs) */
   wikiPath: process.env.HERMES_WIKI_PATH || "/opt/opshub/wiki",
