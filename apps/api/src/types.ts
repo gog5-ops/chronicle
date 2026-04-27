@@ -27,12 +27,24 @@ export type WorkerStatus = "idle" | "running" | "failed" | "disabled";
 export interface Worker {
   name: string;
   description: string;
-  /** Cron expression */
+  /** Cron expression or "manual" / "event" */
   schedule: string;
   status: WorkerStatus;
+  enabled: boolean;
   lastRun?: string;
   lastResult?: "success" | "failure";
-  scriptPath: string;
+  scriptPath?: string;
+}
+
+export interface WorkerRunRecord {
+  timestamp: string;
+  name: string;
+  result: {
+    status: "ok" | "error" | "warn";
+    summary: string;
+    details?: Record<string, unknown>;
+  };
+  durationMs: number;
 }
 
 export interface WorkerLogEntry {

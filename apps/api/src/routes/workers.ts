@@ -1,65 +1,125 @@
-import { Router, type Request, type Response } from "express";
+import { Router } from "express";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { config } from "../config.js";
-import type { Worker, WorkerLogEntry } from "../types.js";
+import type {
+  Worker,
+  WorkerLogEntry,
+  WorkerRunRecord,
+  WorkerStatus,
+} from "../types.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const router = Router();
 
-/**
- * Worker registry. In a full implementation this would be loaded from
- * a config file in the workers directory. For now, scan the directory
- * and build metadata from filenames + optional .meta.json sidecars.
- */
-async function loadWorkers(): Promise<Worker[]> {
+interface ManifestEntry {
+  name: string;
+  description: string;
+  schedule: string;
+  enabled: boolean;
+}
+
+interface Manifest {
+  workers: ManifestEntry[];
+}
+
+const inFlight = new Set<string>();
+
+async function loadManifest(): Promise<ManifestEntry[]> {
   try {
-    const workersPath = config.workersPath;
-    const files = await fs.readdir(workersPath);
-    const scriptFiles = files.filter(
-      (f) => f.endsWith(".ts") || f.endsWith(".sh")
-    );
-
-    const workers: Worker[] = [];
-    for (const file of scriptFiles) {
-      const name = file.replace(/\.(ts|sh)$/, "");
-      const metaPath = path.join(workersPath, `${name}.meta.json`);
-
-      let meta: Partial<Worker> = {};
-      try {
-        const raw = await fs.readFile(metaPath, "utf-8");
-        meta = JSON.parse(raw);
-      } catch {
-        // No meta file, use defaults
-      }
-
-      workers.push({
-        name,
-        description: meta.description || `Worker: ${name}`,
-        schedule: meta.schedule || "manual",
-        status: meta.status || "idle",
-        lastRun: meta.lastRun,
-        lastResult: meta.lastResult,
-        scriptPath: path.join(workersPath, file),
-      });
-    }
-
-    return workers;
+    const raw = await fs.readFile(config.workersManifestPath, "utf-8");
+    const parsed = JSON.parse(raw) as Manifest;
+    return Array.isArray(parsed.workers) ? parsed.workers : [];
   } catch {
     return [];
   }
 }
 
-// GET /api/workers — list all workers with status
-router.get("/", async (_req: Request, res: Response) => {
-  const workers = await loadWorkers();
+async function readRunRecords(): Promise<WorkerRunRecord[]> {
+  try {
+    const raw = await fs.readFile(config.workerRunsLogPath, "utf-8");
+    const records: WorkerRunRecord[] = [];
+    for (const line of raw.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        records.push(JSON.parse(trimmed) as WorkerRunRecord);
+      } catch {
+        // Skip malformed lines; the log is append-only and may have partial writes.
+      }
+    }
+    return records;
+  } catch {
+    return [];
+  }
+}
+
+async function appendRunRecord(record: WorkerRunRecord): Promise<void> {
+  const dir = path.dirname(config.workerRunsLogPath);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.appendFile(
+    config.workerRunsLogPath,
+    JSON.stringify(record) + "\n",
+    "utf-8"
+  );
+}
+
+function deriveStatus(
+  entry: ManifestEntry,
+  lastRecord: WorkerRunRecord | undefined,
+  running: boolean
+): WorkerStatus {
+  if (running) return "running";
+  if (!entry.enabled) return "disabled";
+  if (lastRecord?.result.status === "error") return "failed";
+  return "idle";
+}
+
+function toWorker(
+  entry: ManifestEntry,
+  recordsByName: Map<string, WorkerRunRecord[]>
+): Worker {
+  const records = recordsByName.get(entry.name) ?? [];
+  const last = records[records.length - 1];
+  return {
+    name: entry.name,
+    description: entry.description,
+    schedule: entry.schedule,
+    enabled: entry.enabled,
+    status: deriveStatus(entry, last, inFlight.has(entry.name)),
+    lastRun: last?.timestamp,
+    lastResult: last
+      ? last.result.status === "error"
+        ? "failure"
+        : "success"
+      : undefined,
+  };
+}
+
+async function buildWorkerList(): Promise<Worker[]> {
+  const [entries, records] = await Promise.all([
+    loadManifest(),
+    readRunRecords(),
+  ]);
+  const byName = new Map<string, WorkerRunRecord[]>();
+  for (const r of records) {
+    const list = byName.get(r.name) ?? [];
+    list.push(r);
+    byName.set(r.name, list);
+  }
+  return entries.map((e) => toWorker(e, byName));
+}
+
+// GET /api/workers — list all workers from the manifest
+router.get("/", async (_req, res) => {
+  const workers = await buildWorkerList();
   res.json({ workers, count: workers.length });
 });
 
-// GET /api/workers/:name/logs — get worker logs
-router.get("/:name/logs", async (req: Request, res: Response) => {
+// GET /api/workers/:name/logs — tail of ops.log filtered by worker name
+router.get<{ name: string }>("/:name/logs", async (req, res) => {
   const { name } = req.params;
   const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 200);
 
@@ -70,7 +130,6 @@ router.get("/:name/logs", async (req: Request, res: Response) => {
     const lines = content.trim().split("\n").slice(-limit);
 
     const entries: WorkerLogEntry[] = lines.map((line) => {
-      // Expected log format: [ISO_TIMESTAMP] LEVEL message
       const match = line.match(
         /^\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z?)\]\s+(INFO|WARN|ERROR)\s+(.*)$/i
       );
@@ -94,45 +153,88 @@ router.get("/:name/logs", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/workers/:name/trigger — manually trigger a worker
-router.post("/:name/trigger", async (req: Request, res: Response) => {
+// GET /api/workers/:name/history — last N run records for this worker
+router.get<{ name: string }>("/:name/history", async (req, res) => {
   const { name } = req.params;
-  const workers = await loadWorkers();
-  const worker = workers.find((w) => w.name === name);
+  const limit = Math.min(parseInt((req.query.limit as string) || "10", 10), 100);
 
-  if (!worker) {
+  const all = await readRunRecords();
+  const filtered = all.filter((r) => r.name === name).slice(-limit);
+  res.json({ name, runs: filtered, count: filtered.length });
+});
+
+// POST /api/workers/:name/trigger — execute the worker via the runner CLI
+router.post<{ name: string }>("/:name/trigger", async (req, res) => {
+  const { name } = req.params;
+
+  const entries = await loadManifest();
+  const entry = entries.find((e) => e.name === name);
+  if (!entry) {
     res.status(404).json({ error: `Worker not found: ${name}` });
     return;
   }
 
-  if (worker.status === "running") {
+  if (inFlight.has(name)) {
     res.status(409).json({ error: `Worker is already running: ${name}` });
     return;
   }
 
-  // Trigger the worker script asynchronously
+  inFlight.add(name);
   const startedAt = new Date().toISOString();
+  const startMs = Date.now();
 
   try {
-    const ext = path.extname(worker.scriptPath);
-    const cmd =
-      ext === ".ts" ? `npx tsx ${worker.scriptPath}` : `bash ${worker.scriptPath}`;
-
-    // Run with a 5-minute timeout
-    execAsync(cmd, { timeout: 300_000 }).catch(() => {
-      // Worker failure is logged, not thrown to the caller
+    const { stdout } = await execFileAsync(
+      "node",
+      [config.workersRunnerPath, name],
+      { timeout: 300_000, maxBuffer: 10 * 1024 * 1024 }
+    ).catch((err: NodeJS.ErrnoException & { stdout?: string; stderr?: string }) => {
+      // The runner exits non-zero when result.status === "error" but still
+      // prints the JSON result on stdout. Recover that payload instead of failing.
+      if (typeof err.stdout === "string" && err.stdout.trim().length > 0) {
+        return { stdout: err.stdout, stderr: err.stderr ?? "" };
+      }
+      throw err;
     });
 
-    res.json({
-      message: `Worker triggered: ${name}`,
-      startedAt,
-      scriptPath: worker.scriptPath,
-    });
+    let result: WorkerRunRecord["result"];
+    try {
+      result = JSON.parse(stdout) as WorkerRunRecord["result"];
+    } catch {
+      result = {
+        status: "error",
+        summary: "Runner did not produce parseable JSON output",
+        details: { stdout: stdout.slice(0, 4096) },
+      };
+    }
+
+    const record: WorkerRunRecord = {
+      timestamp: startedAt,
+      name,
+      result,
+      durationMs: Date.now() - startMs,
+    };
+    await appendRunRecord(record);
+
+    res.json(record);
   } catch (err) {
-    res.status(500).json({
-      error: `Failed to trigger worker: ${name}`,
-      details: err instanceof Error ? err.message : String(err),
+    const record: WorkerRunRecord = {
+      timestamp: startedAt,
+      name,
+      result: {
+        status: "error",
+        summary: `Failed to execute worker: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      },
+      durationMs: Date.now() - startMs,
+    };
+    await appendRunRecord(record).catch(() => {
+      // Best-effort: if we can't write the log we still return the error to the caller.
     });
+    res.status(500).json(record);
+  } finally {
+    inFlight.delete(name);
   }
 });
 
