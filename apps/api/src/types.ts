@@ -1,19 +1,25 @@
 export interface ChronicleEntry {
   id: string;
-  /** ISO 8601 timestamp */
-  timestamp: string;
-  /** Who performed the action */
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM UTC (or HH:MM) */
+  time: string;
+  /** Who performed the action (e.g., Claude, Hermes) */
   actor: string;
-  /** What was done */
-  action: string;
-  /** Related issue URL or number */
+  /** Entry title from the ### heading */
+  title: string;
+  /** Related issue identifier (e.g., opshub#78) */
   issue?: string;
-  /** Output artifacts (file paths, URLs) */
+  /** Summary of what was done (from **做了什么** field) */
+  summary: string;
+  /** Key findings (from **关键发现** field) */
+  findings?: string[];
+  /** Artifacts produced (from **产出** field) */
   artifacts?: string[];
-  /** Error paths or dead ends encountered */
+  /** Error paths / dead ends encountered (from **错误路径** field) */
   errorPaths?: string[];
-  /** Free-form notes */
-  notes?: string;
+  /** Raw markdown block for this entry, including its ### heading */
+  raw: string;
 }
 
 export type WorkerStatus = "idle" | "running" | "failed" | "disabled";
