@@ -27,7 +27,7 @@ export default function Audit() {
         onRetry={list.refetch}
         loadingLabel="加载审计报告…"
       >
-        <div className="space-y-3">
+        <div data-testid="audit-list" className="space-y-3">
           {(list.data?.reports ?? []).map((report) => (
             <AuditCard
               key={report.id}
@@ -58,8 +58,9 @@ function AuditCard({
   );
 
   return (
-    <Card>
+    <Card testId="audit-card">
       <button
+        data-testid="audit-toggle"
         onClick={onToggle}
         className="w-full text-left flex items-start justify-between gap-3"
         aria-expanded={expanded}
@@ -89,7 +90,7 @@ function AuditCard({
       </button>
 
       {expanded ? (
-        <div className="mt-4 border-t border-gray-800 pt-4">
+        <div data-testid="audit-details" className="mt-4 border-t border-gray-800 pt-4">
           <AsyncBoundary
             loading={detail.loading}
             error={detail.error}
@@ -117,7 +118,7 @@ function FindingRow({ finding }: { finding: AuditFinding }) {
     error: "border-red-900/50 bg-red-950/20 text-red-300",
   } as const;
   return (
-    <li className={`rounded border px-3 py-2 text-sm ${styles[finding.severity]}`}>
+    <li data-testid="audit-finding" data-severity={finding.severity} className={`rounded border px-3 py-2 text-sm ${styles[finding.severity]}`}>
       <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider">
         <span>{finding.severity}</span>
         <span className="opacity-50">·</span>

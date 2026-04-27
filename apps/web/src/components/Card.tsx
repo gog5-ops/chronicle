@@ -5,11 +5,13 @@ interface CardProps {
   className?: string;
   title?: string;
   subtitle?: string;
+  testId?: string;
 }
 
-export default function Card({ children, className = "", title, subtitle }: CardProps) {
+export default function Card({ children, className = "", title, subtitle, testId }: CardProps) {
   return (
     <div
+      data-testid={testId}
       className={`rounded-lg border border-gray-800 bg-gray-900 p-5 ${className}`}
     >
       {title ? (

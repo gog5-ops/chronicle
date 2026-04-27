@@ -53,10 +53,11 @@ export default function Chronicle() {
         subtitle="编年体 — 按时间线查看所有任务记录"
       />
 
-      <div className="mb-6 rounded-lg border border-gray-800 bg-gray-900/60 p-4">
+      <div data-testid="filter-bar" className="mb-6 rounded-lg border border-gray-800 bg-gray-900/60 p-4">
         <div className="flex flex-wrap items-end gap-4">
           <Field label="起始日期">
             <input
+              data-testid="filter-from"
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
@@ -65,6 +66,7 @@ export default function Chronicle() {
           </Field>
           <Field label="结束日期">
             <input
+              data-testid="filter-to"
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
@@ -73,6 +75,7 @@ export default function Chronicle() {
           </Field>
           <Field label="执行者">
             <select
+              data-testid="filter-actor"
               value={actor}
               onChange={(e) => setActor(e.target.value)}
               className="bg-gray-950 border border-gray-800 rounded-md px-2.5 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-gray-600 min-w-[140px]"
@@ -87,13 +90,14 @@ export default function Chronicle() {
           </Field>
           {(from || to || actor) && (
             <button
+              data-testid="filter-clear"
               onClick={reset}
               className="text-xs text-gray-400 hover:text-gray-200 px-2 py-1.5"
             >
               清除筛选
             </button>
           )}
-          <div className="ml-auto text-xs text-gray-500">
+          <div data-testid="filter-count" className="ml-auto text-xs text-gray-500">
             {chronicle.data ? `共 ${chronicle.data.count} 条` : null}
           </div>
         </div>

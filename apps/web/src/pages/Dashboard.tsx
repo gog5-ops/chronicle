@@ -24,8 +24,9 @@ export default function Dashboard() {
     <div>
       <PageHeader title="Dashboard" subtitle="系统概览" />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div data-testid="stats-grid" className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <StatCard
+          testId="stat-entries"
           title="编年体条目"
           value={stats.data ? String(stats.data.totalEntries) : "—"}
           sub={
@@ -37,6 +38,7 @@ export default function Dashboard() {
           error={stats.error}
         />
         <StatCard
+          testId="stat-workers"
           title="活跃 Workers"
           value={workers.data ? String(activeWorkers) : "—"}
           sub={
@@ -48,6 +50,7 @@ export default function Dashboard() {
           error={workers.error}
         />
         <StatCard
+          testId="stat-actors"
           title="独立 Actor"
           value={stats.data ? String(stats.data.uniqueActors) : "—"}
           sub={stats.data ? stats.data.actors.join(" · ") : "unique actors"}
@@ -56,8 +59,9 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div data-testid="dashboard-grid" className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card
+          testId="recent-activity"
           className="lg:col-span-2"
           title="最近活动"
           subtitle="最新 5 条编年体记录"
@@ -83,7 +87,7 @@ export default function Dashboard() {
           </AsyncBoundary>
         </Card>
 
-        <Card title="服务健康" subtitle="tmux session 状态">
+        <Card testId="health-panel" title="服务健康" subtitle="tmux session 状态">
           <AsyncBoundary
             loading={health.loading}
             error={health.error}
@@ -106,17 +110,24 @@ function StatCard({
   sub,
   loading,
   error,
+  testId,
 }: {
   title: string;
   value: string;
   sub: string;
   loading?: boolean;
   error?: string | null;
+  testId?: string;
 }) {
+  const state = error ? "error" : loading ? "loading" : "ready";
   return (
-    <div className="rounded-lg border border-gray-800 bg-gray-900 p-5">
+    <div
+      data-testid={testId}
+      data-state={state}
+      className="rounded-lg border border-gray-800 bg-gray-900 p-5"
+    >
       <p className="text-xs text-gray-500 uppercase tracking-wider">{title}</p>
-      <p className="mt-2 text-3xl font-semibold text-white">
+      <p data-testid={testId ? `${testId}-value` : undefined} className="mt-2 text-3xl font-semibold text-white">
         {error ? "!" : loading ? "…" : value}
       </p>
       <p className="mt-1 text-xs text-gray-600 truncate" title={sub}>
@@ -141,9 +152,9 @@ function HealthPanel({ health }: { health: HealthLive }) {
           {health.status === "ok" ? "全部正常" : "存在异常"}
         </span>
       </div>
-      <ul className="space-y-1.5 text-sm">
+      <ul data-testid="health-services" className="space-y-1.5 text-sm">
         {(Object.keys(labels) as (keyof HealthLive["sessions"])[]).map((k) => (
-          <li key={k} className="flex items-center justify-between">
+          <li key={k} data-testid={`health-${k}`} className="flex items-center justify-between">
             <span className="text-gray-400">{labels[k]}</span>
             <span
               className={

@@ -81,7 +81,7 @@ export default function Workers() {
         onRetry={workers.refetch}
         loadingLabel="加载 workers…"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div data-testid="workers-grid" className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {(workers.data?.workers ?? []).map((w) => (
             <WorkerCard
               key={w.name}
@@ -108,16 +108,17 @@ function WorkerCard({
   const isRunning = trigger.kind === "running" || worker.status === "running";
 
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
+    <Card testId="worker-card">
+      <div data-worker-name={worker.name} className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-white">{worker.name}</h3>
+            <h3 data-testid="worker-name" className="text-base font-semibold text-white">{worker.name}</h3>
             <StatusBadge status={worker.status} />
           </div>
-          <p className="mt-1 text-sm text-gray-400">{worker.description}</p>
+          <p data-testid="worker-description" className="mt-1 text-sm text-gray-400">{worker.description}</p>
         </div>
         <button
+          data-testid="worker-trigger"
           onClick={onRun}
           disabled={isRunning}
           className="shrink-0 rounded-md bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:text-gray-600 text-gray-200 text-xs px-3 py-1.5 border border-gray-700 disabled:border-gray-800 transition-colors"
@@ -146,18 +147,20 @@ function WorkerCard({
             {worker.lastResult ?? "—"}
           </span>
         </Meta>
-        <Meta label="脚本">
-          <code className="text-gray-500 text-[11px] truncate" title={worker.scriptPath}>
-            {worker.scriptPath.split("/").slice(-2).join("/")}
-          </code>
-        </Meta>
+        {worker.scriptPath ? (
+          <Meta label="脚本">
+            <code className="text-gray-500 text-[11px] truncate" title={worker.scriptPath}>
+              {worker.scriptPath.split("/").slice(-2).join("/")}
+            </code>
+          </Meta>
+        ) : null}
       </dl>
 
       {trigger.kind === "success" ? (
-        <p className="mt-3 text-xs text-emerald-400">{trigger.message}</p>
+        <p data-testid="worker-feedback-success" className="mt-3 text-xs text-emerald-400">{trigger.message}</p>
       ) : null}
       {trigger.kind === "error" ? (
-        <p className="mt-3 text-xs text-red-400">{trigger.message}</p>
+        <p data-testid="worker-feedback-error" className="mt-3 text-xs text-red-400">{trigger.message}</p>
       ) : null}
     </Card>
   );
@@ -177,7 +180,7 @@ function StatusBadge({ status }: { status: WorkerStatus }) {
     disabled: "已禁用",
   };
   return (
-    <span className={`text-[11px] px-2 py-0.5 rounded ${styles[status]}`}>
+    <span data-testid="worker-status-badge" data-status={status} className={`text-[11px] px-2 py-0.5 rounded ${styles[status]}`}>
       {labels[status]}
     </span>
   );

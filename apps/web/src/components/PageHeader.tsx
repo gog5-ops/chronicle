@@ -8,9 +8,9 @@ interface PageHeaderProps {
 
 export default function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
   return (
-    <div className="mb-8 flex items-start justify-between gap-4">
+    <div data-testid="page-header" className="mb-8 flex items-start justify-between gap-4">
       <div>
-        <h2 className="text-2xl font-semibold text-white">{title}</h2>
+        <h2 data-testid="page-title" className="text-2xl font-semibold text-white">{title}</h2>
         {subtitle ? (
           <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
         ) : null}

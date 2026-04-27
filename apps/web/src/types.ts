@@ -46,9 +46,10 @@ export interface Worker {
   description: string;
   schedule: string;
   status: WorkerStatus;
+  enabled?: boolean;
   lastRun?: string;
   lastResult?: "success" | "failure";
-  scriptPath: string;
+  scriptPath?: string;
 }
 
 export interface WorkersResponse {

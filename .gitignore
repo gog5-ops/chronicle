@@ -5,3 +5,8 @@ dist/
 *.log
 .turbo/
 .next/
+
+# Playwright
+test-results/
+playwright-report/
+**/tsconfig.tsbuildinfo

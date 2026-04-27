@@ -5,17 +5,17 @@ import Workers from "./pages/Workers";
 import Audit from "./pages/Audit";
 
 const navItems = [
-  { to: "/", label: "Dashboard", sub: "系统概览" },
-  { to: "/chronicle", label: "Chronicle", sub: "编年体" },
-  { to: "/workers", label: "Workers", sub: "状态监控" },
-  { to: "/audit", label: "Audit", sub: "审计报告" },
+  { to: "/", label: "Dashboard", sub: "系统概览", testId: "nav-dashboard" },
+  { to: "/chronicle", label: "Chronicle", sub: "编年体", testId: "nav-chronicle" },
+  { to: "/workers", label: "Workers", sub: "状态监控", testId: "nav-workers" },
+  { to: "/audit", label: "Audit", sub: "审计报告", testId: "nav-audit" },
 ];
 
 export default function App() {
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
-      <nav className="w-56 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col">
+      <nav data-testid="sidebar" className="w-56 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col">
         <div className="px-5 py-6 border-b border-gray-800">
           <h1 className="text-lg font-semibold tracking-wide text-white">
             Hermes
@@ -24,15 +24,16 @@ export default function App() {
         </div>
 
         <ul className="flex-1 py-3 space-y-0.5 px-2">
-          {navItems.map(({ to, label, sub }) => (
+          {navItems.map(({ to, label, sub, testId }) => (
             <li key={to}>
               <NavLink
                 to={to}
                 end={to === "/"}
+                data-testid={testId}
                 className={({ isActive }) =>
                   `block rounded-md px-3 py-2.5 text-sm transition-colors ${
                     isActive
-                      ? "bg-gray-800 text-white"
+                      ? "bg-gray-800 text-white nav-link-active"
                       : "text-gray-400 hover:bg-gray-800/50 hover:text-gray-200"
                   }`
                 }

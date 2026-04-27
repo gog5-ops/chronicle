@@ -47,7 +47,7 @@ export function issueLink(issue: string | undefined): {
     const m = issue.match(/issues\/(\d+)/);
     return { href: issue, label: m ? `#${m[1]}` : issue };
   }
-  const num = issue.replace(/^#/, "");
+  const num = issue.replace(/^(?:opshub)?#/, "");
   if (/^\d+$/.test(num)) {
     return {
       href: `https://github.com/gog5-ops/opshub/issues/${num}`,

@@ -23,6 +23,9 @@ export default function ChronicleEntryCard({
 
   return (
     <article
+      data-testid="chronicle-entry"
+      data-entry-id={entry.id}
+      data-expanded={expanded ? "true" : "false"}
       className={`rounded-md border border-gray-800 bg-gray-900/60 ${
         compact ? "p-3" : "p-4"
       } hover:border-gray-700 transition-colors`}
@@ -37,6 +40,7 @@ export default function ChronicleEntryCard({
               <>
                 <span className="text-gray-700">·</span>
                 <a
+                  data-testid="entry-issue-link"
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -57,6 +61,7 @@ export default function ChronicleEntryCard({
         </div>
         {hasDetails ? (
           <button
+            data-testid="entry-expand-toggle"
             onClick={() => setExpanded((v) => !v)}
             className="shrink-0 text-xs text-gray-500 hover:text-gray-300"
             aria-expanded={expanded}
@@ -67,7 +72,7 @@ export default function ChronicleEntryCard({
       </header>
 
       {expanded && hasDetails ? (
-        <div className="mt-3 space-y-3 border-t border-gray-800 pt-3 text-sm">
+        <div data-testid="entry-details" className="mt-3 space-y-3 border-t border-gray-800 pt-3 text-sm">
           {entry.summary ? (
             <Section label="做了什么">
               <p className="text-gray-300 whitespace-pre-wrap">
