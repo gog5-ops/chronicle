@@ -34,7 +34,7 @@ function extractScriptRefs(content: string): string[] {
  */
 function verifyScript(
   scriptPath: string,
-  runbookContent: string,
+  _runbookContent: string,
   runbookFile: string
 ): Inconsistency | null {
   if (!existsSync(scriptPath)) {
@@ -45,7 +45,6 @@ function verifyScript(
     };
   }
 
-  // Check the script is not empty
   const scriptContent = readFileSync(scriptPath, "utf-8");
   if (scriptContent.trim().length === 0) {
     return {
@@ -53,29 +52,6 @@ function verifyScript(
       scriptPath,
       issue: "Script file is empty",
     };
-  }
-
-  // Check that the runbook's inline code blocks referencing this script
-  // don't contradict the script (basic: check if the script name appears
-  // with different flags/args in code blocks vs actual script)
-  const codeBlockRegex = /```[\s\S]*?```/g;
-  let block: RegExpExecArray | null;
-  while ((block = codeBlockRegex.exec(runbookContent)) !== null) {
-    const blockContent = block[0];
-    const scriptName = scriptPath.split("/").pop();
-    if (scriptName && blockContent.includes(scriptName)) {
-      // Extract the command line from the code block
-      const cmdLine = blockContent
-        .split("\n")
-        .find((l) => l.includes(scriptName));
-      if (cmdLine && !scriptContent.includes(scriptName)) {
-        return {
-          runbook: runbookFile,
-          scriptPath,
-          issue: `Runbook references "${scriptName}" in a command but script content may be outdated`,
-        };
-      }
-    }
   }
 
   return null;
